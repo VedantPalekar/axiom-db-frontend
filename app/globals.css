@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* class-based dark mode for next-themes */
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --background: #fdf6ec;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --border: #e5e7eb;
+  --muted: #f8f5ef;
+  --muted-foreground: #6b7280;
+  --primary: #111827;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #111827;
+  --ring: rgba(17, 24, 39, 0.14);
+  --input: #ffffff;
+}
+
+.dark {
+  --background: #050B10;
+  --foreground: #F0EEE9;
+  --card: #16161F;
+  --card-foreground: #F0EEE9;
+  --border: #2A2A35;
+  --muted: #1A1A24;
+  --muted-foreground: #9CA3AF;
+  --primary: #F0EEE9;
+  --primary-foreground: #0F0F14;
+  --secondary: #1A1A24;
+  --secondary-foreground: #F0EEE9;
+  --ring: rgba(240, 238, 233, 0.14);
+  --input: #16161F;
+}
+
+/* Healing card border glow pulse */
+@keyframes healing-border-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25), 0 4px 24px rgba(59, 130, 246, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  50% {
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.55), 0 4px 32px rgba(59, 130, 246, 0.28), 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* Terminal cursor blink */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Data dot traveling down a healing-card connector line */
+@keyframes healing-dot-travel {
+  0% {
+    top: 0;
+    opacity: 1;
+  }
+
+  85% {
+    opacity: 1;
+  }
+
+  100% {
+    top: 16px;
+    opacity: 0;
+  }
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
+}
