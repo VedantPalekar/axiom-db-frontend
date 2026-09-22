@@ -22,6 +22,12 @@ Dashboard and landing page for **AxiomDB** — an autonomous database monitoring
 
 ---
 
+## Design
+
+The UI is a dark, 2000s-era game HUD: near-black steel panels with chamfered corners, neon cyan for systems, neon green for "healed", red for damage, scanlines over everything. The landing page is framed as a mission briefing — the database takes damage at 2AM, AxiomDB heals it, nobody gets paged. The console pages share the same skin via a scoped Tailwind colour remap (`.hud` in `app/globals.css`), so every operational page is dark without per-component changes.
+
+Fonts: Orbitron (display), Rajdhani (UI), Share Tech Mono (readouts) — loaded through `next/font/google`.
+
 ## Tech stack
 
 - **Next.js 16** with the App Router

@@ -673,7 +673,7 @@ Complete visual and interaction overhaul of the landing page. Every section was 
 | File | Purpose |
 |------|---------|
 | `public/assets/axiomLogo.png` | AxiomDB product logo — used in Navbar, Footer, and Slack mockup avatar |
-| `public/assets/hinataDP.png` | Operator avatar ("VedantPalekar") — used in the Slack mockup thread |
+| `public/assets/hinataDP.png` (removed in the HUD redesign) | Operator avatar ("VedantPalekar") — used in the Slack mockup thread |
 
 ### New utility: `lib/constants.ts`
 
@@ -846,4 +846,4 @@ Quick-links column unchanged. Bottom row unchanged.
 | `components/landing/footer.tsx` | Logo image, GitHub URL from constants |
 | `lib/constants.ts` | New — `GITHUB_URL` constant |
 | `public/assets/axiomLogo.png` | New — AxiomDB logo asset |
-| `public/assets/hinataDP.png` | New — operator avatar asset |
+| `public/assets/hinataDP.png` (removed in the HUD redesign) | New — operator avatar asset |

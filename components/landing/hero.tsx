@@ -1,167 +1,141 @@
 "use client";
 
-import Link from "next/link";
-import { CheckCircle2, Lock, PlayCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { HealingCard } from "./healing-card";
-import { HeroPerspectiveGrid } from "../HeroPerspectiveGrid";
+import { Play, X } from "lucide-react";
+import { DEMO_VIDEO_ID } from "../../lib/constants";
+import { cn } from "@/lib/utils";
+import { Eyebrow, HudButton, HudPanel, Readout } from "./hud";
 
-const designPrinciples = [
-  "Safe by default",
-  "Human in the loop",
-  "Audit trail",
-  "Open source",
+// ── Live feed: one incident, start to finish, nobody paged ───────────────────
+type Phase = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+const FEED: { t: string; tag: string; text: string; tone: "red" | "cyan" | "green" | "amber" | "violet" }[] = [
+  { t: "02:14:07", tag: "DAMAGE", text: "orders.ship_region · null_violation · 301 rows", tone: "red" },
+  { t: "02:14:08", tag: "DIAGNOSE", text: "groq llm · 3 similar fixes in memory · confidence 0.95", tone: "cyan" },
+  { t: "02:14:11", tag: "SANDBOX", text: "ephemeral postgres · 500 rows seeded · fix PASSED", tone: "cyan" },
+  { t: "02:14:12", tag: "PROPOSE", text: "card posted to #axiom-ops · rollback sql attached", tone: "cyan" },
+  { t: "02:14:12", tag: "HOLD", text: "no page sent · operator status: asleep", tone: "violet" },
+  { t: "07:31:40", tag: "APPROVE", text: "1 click · applied in txn · 2/2 assertions passed", tone: "green" },
+  { t: "07:31:41", tag: "HEALED", text: "301 rows fixed · audit + catalog updated · receipt sent", tone: "green" },
 ];
 
-// ── Cycling terminal ──────────────────────────────────────────────────────────
+const PHASE_MS = [900, 1400, 1400, 1400, 1400, 2200, 1500, 2600];
 
-const QUERIES = [
-  {
-    cmd: 'axiomdb fix --issue "high error rate"',
-    resp: "✓  Fix validated. Ready for approval.",
-    respCls: "text-emerald-400",
-  },
-  {
-    cmd: "axiomdb scan --table orders --anomaly",
-    resp: "⚠  3 anomalies found. Proposing remediation...",
-    respCls: "text-yellow-400",
-  },
-  {
-    cmd: "axiomdb audit --since 24h",
-    resp: "✓  12 events logged. All decisions traceable.",
-    respCls: "text-emerald-400",
-  },
-  {
-    cmd: "axiomdb sandbox --replay incident-4821",
-    resp: "✓  Fix safe to apply. Sandbox passed in 1.2s.",
-    respCls: "text-blue-400",
-  },
-  {
-    cmd: "axiomdb approve --fix latest",
-    resp: "✓  Human approval received. Applying now...",
-    respCls: "text-emerald-400",
-  },
-];
-
-type TermPhase = "typing-cmd" | "pause" | "typing-resp" | "hold";
-
-const CURSOR = (
-  <span
-    className="inline-block w-[0.42em] h-[0.85em] bg-stone-300 ml-px align-middle"
-    style={{ animation: "cursor-blink 1s step-end infinite" }}
-  />
-);
-
-function TerminalWindow() {
-  const [qIdx, setQIdx] = useState(0);
-  const [cmdChars, setCmdChars] = useState(0);
-  const [respChars, setRespChars] = useState(0);
-  const [phase, setPhase] = useState<TermPhase>("typing-cmd");
-
-  const query = QUERIES[qIdx];
-  const cmdLen = query.cmd.length;
-  const respLen = query.resp.length;
+function LiveFeed() {
+  const [phase, setPhase] = useState<Phase>(0);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setCmdChars(cmdLen);
-      setRespChars(respLen);
-      setPhase("hold");
-      return;
-    }
+    let i = 0;
+    let id: ReturnType<typeof setTimeout>;
+    const step = () => {
+      i = (i + 1) % (FEED.length + 1);
+      setPhase(i as Phase);
+      id = setTimeout(step, PHASE_MS[i] ?? 1400);
+    };
+    id = setTimeout(step, PHASE_MS[0]);
+    return () => clearTimeout(id);
+  }, []);
 
-    let t: ReturnType<typeof setTimeout>;
-
-    switch (phase) {
-      case "typing-cmd":
-        if (cmdChars < cmdLen) {
-          t = setTimeout(() => setCmdChars((c) => c + 1), 42);
-        } else {
-          t = setTimeout(() => setPhase("pause"), 300);
-        }
-        break;
-      case "pause":
-        t = setTimeout(() => setPhase("typing-resp"), 120);
-        break;
-      case "typing-resp":
-        if (respChars < respLen) {
-          t = setTimeout(() => setRespChars((c) => c + 1), 28);
-        } else {
-          t = setTimeout(() => setPhase("hold"), 80);
-        }
-        break;
-      case "hold":
-        t = setTimeout(() => {
-          setQIdx((i) => (i + 1) % QUERIES.length);
-          setCmdChars(0);
-          setRespChars(0);
-          setPhase("typing-cmd");
-        }, 1600);
-        break;
-    }
-
-    return () => clearTimeout(t);
-  }, [phase, cmdChars, respChars, cmdLen, respLen]);
+  const damaged = phase >= 1 && phase < 6;
+  const healed = phase >= 6;
+  const hp = phase === 0 ? 100 : healed ? 100 : 62;
+  const barTone = healed ? "bg-hud-green shadow-[0_0_14px_var(--hud-green)]" : damaged ? "bg-hud-red shadow-[0_0_14px_var(--hud-red)]" : "bg-hud-green shadow-[0_0_14px_var(--hud-green)]";
 
   return (
-    <div className="rounded-xl border border-stone-700/50 bg-stone-950 px-5 py-4 shadow-2xl shadow-black/50">
-      {/* macOS traffic lights */}
-      <div className="mb-3 flex items-center gap-1.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-red-400/80" />
-        <span className="h-2.5 w-2.5 rounded-full bg-yellow-400/80" />
-        <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" />
+    <HudPanel tone="cyan" className="w-full">
+      <div className="flex items-center justify-between">
+        <p className="font-hud-mono text-[11px] uppercase tracking-[0.3em] text-hud-cyan">
+          <span className="blink text-hud-red">●</span> Live · incident feed
+        </p>
+        <p className="font-hud-mono text-[10px] uppercase tracking-[0.25em] text-hud-muted">northwind · prod</p>
       </div>
-      <div className="min-h-[3rem] font-mono text-xs leading-6">
-        {/* Command */}
-        <div>
-          <span className="text-stone-500">&gt; </span>
-          <span className="text-stone-300">{query.cmd.slice(0, cmdChars)}</span>
-          {phase === "typing-cmd" && CURSOR}
+
+      {/* HP bar */}
+      <div className="mt-5">
+        <div className="flex items-end justify-between font-hud-mono">
+          <span className="text-[10px] uppercase tracking-[0.25em] text-hud-muted">Database HP</span>
+          <span className={cn("text-lg tracking-[0.1em]", healed || !damaged ? "text-hud-green glow-green" : "text-hud-red glow-red")}>
+            {hp}%
+          </span>
         </div>
-        {/* Response */}
-        {respChars > 0 && (
-          <div>
-            <span className={query.respCls}>{query.resp.slice(0, respChars)}</span>
-            {phase === "typing-resp" && CURSOR}
-          </div>
-        )}
+        <div className="mt-2 h-3 w-full border border-hud-line bg-hud-bg p-[2px]">
+          <div
+            className={cn("h-full transition-[width] duration-700 ease-out", barTone)}
+            style={{ width: `${hp}%` }}
+          />
+        </div>
+        <div className="mt-1.5 flex justify-between font-hud-mono text-[10px] uppercase tracking-[0.2em] text-hud-muted">
+          <span>{damaged ? "status: taking damage" : healed ? "status: healed" : "status: stable"}</span>
+          <span>rows 500</span>
+        </div>
       </div>
-    </div>
+
+      {/* log */}
+      <ol className="mt-5 space-y-1.5 font-hud-mono text-[12px]">
+        {FEED.map((line, i) => {
+          const visible = phase > i;
+          const color = {
+            red: "text-hud-red",
+            cyan: "text-hud-cyan",
+            green: "text-hud-green",
+            amber: "text-hud-amber",
+            violet: "text-hud-violet",
+          }[line.tone];
+          return (
+            <li
+              key={line.tag + i}
+              className={cn("flex gap-3 transition-opacity duration-300", visible ? "opacity-100" : "opacity-0")}
+            >
+              <span className="shrink-0 text-hud-muted">{line.t}</span>
+              <span className={cn("w-[74px] shrink-0 font-bold uppercase tracking-[0.15em]", color)}>{line.tag}</span>
+              <span className="text-hud-text/90">{line.text}</span>
+            </li>
+          );
+        })}
+        {phase < FEED.length && (
+          <li className="flex gap-3 text-hud-cyan">
+            <span className="text-hud-muted">--:--:--</span>
+            <span className="cursor-blink">▮</span>
+          </li>
+        )}
+      </ol>
+
+      <div className="mt-5 grid grid-cols-3 gap-4 border-t border-hud-line pt-4">
+        <Readout label="Operator" value={phase >= 5 ? "awake · 1 click" : "asleep"} tone={phase >= 5 ? "green" : "dim"} />
+        <Readout label="Pages sent" value="0" tone="green" />
+        <Readout label="Mode" value="human-in-loop" tone="cyan" />
+      </div>
+    </HudPanel>
   );
 }
 
 // ── Demo modal ────────────────────────────────────────────────────────────────
-
 function DemoModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl bg-black"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white/70 transition-colors hover:bg-black/80 hover:text-white"
-          aria-label="Close"
-        >
-          <X className="h-4 w-4" />
-        </button>
-        <div className="aspect-video w-full">
-          <iframe
-            src="https://www.youtube.com/embed/H3tvkptnSZ4?autoplay=1&rel=0"
-            allow="autoplay; encrypted-media; picture-in-picture"
-            allowFullScreen
-            className="h-full w-full"
-          />
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4" onClick={onClose}>
+      <div className="chamfer w-full max-w-4xl bg-hud-cyan/60 p-px" onClick={(e) => e.stopPropagation()}>
+        <div className="chamfer bg-hud-panel p-3">
+          <div className="flex items-center justify-between px-2 pb-3">
+            <p className="font-hud-mono text-[11px] uppercase tracking-[0.3em] text-hud-cyan">▶ Mission replay</p>
+            <button type="button" onClick={onClose} aria-label="Close" className="text-hud-dim hover:text-hud-cyan">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="aspect-video w-full bg-black">
+            <iframe
+              src={`https://www.youtube.com/embed/${DEMO_VIDEO_ID}?autoplay=1&rel=0`}
+              title="AxiomDB demo"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="h-full w-full"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -169,109 +143,65 @@ function DemoModal({ onClose }: { onClose: () => void }) {
 }
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
-
 export function Hero() {
   const [demoOpen, setDemoOpen] = useState(false);
 
   return (
-    <>
+    <section className="relative overflow-hidden">
       {demoOpen && <DemoModal onClose={() => setDemoOpen(false)} />}
 
-      <section className="relative overflow-hidden">
-        <HeroPerspectiveGrid />
+      {/* ambient glow */}
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 bg-[radial-gradient(ellipse_at_center,rgba(0,229,255,0.14),transparent_60%)]" />
 
-        <div className="relative z-10">
-          <div className="mx-auto max-w-7xl px-6 pt-8 pb-24 md:pt-36 md:pb-32 lg:pt-28 lg:pb-40">
-            <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1fr_440px] xl:gap-20">
+      <div className="relative mx-auto grid max-w-7xl gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8 lg:pb-28 lg:pt-24">
+        <div>
+          <Eyebrow>// mission 001 — keep the database alive</Eyebrow>
 
-              {/* ── LEFT — copy ── */}
-              <div>
-                {/* Badge */}
-                <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white/80 px-4 py-1.5 text-xs font-medium text-stone-500 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:text-stone-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                  v0.1 · Early Access · Open Source
-                </div>
+          <h1 className="mt-6 font-display text-4xl font-black uppercase leading-[1.05] tracking-[0.04em] text-hud-text sm:text-5xl lg:text-[3.6rem]">
+            Autonomous
+            <br />
+            database
+            <br />
+            <span className="text-hud-cyan glow-cyan">self-healing.</span>
+          </h1>
 
-                {/* Headline */}
-                <h1 className="max-w-[560px] text-[2.6rem] font-extrabold leading-[1.1] tracking-tight text-stone-900 dark:text-white md:text-5xl lg:text-[3.25rem]">
-                  Autonomous database self-healing.
-                  <span className="mt-3 block text-[1.65rem] font-normal tracking-normal text-stone-500 dark:text-stone-400 md:text-[1.85rem] lg:text-[2rem] leading-snug">
-                    For the 2am page that shouldn&apos;t have woken you.
-                  </span>
-                </h1>
+          <p className="mt-6 max-w-xl text-2xl font-medium text-hud-dim">
+            For the 2AM page that shouldn&apos;t have woken you.
+          </p>
 
-                {/* Subtitle */}
-                <p
-                  className="mt-5 max-w-[440px] text-base text-stone-500 dark:text-stone-400"
-                  style={{ lineHeight: "1.7" }}
-                >
-                  AxiomDB watches your data, diagnoses what broke, tests the fix
-                  in an ephemeral sandbox, asks a human to approve, then writes
-                  the whole story to your catalog.
-                </p>
+          <p className="mt-5 max-w-xl text-lg leading-relaxed text-hud-text/80">
+            AxiomDB watches your data, diagnoses what broke, tests the fix in an ephemeral sandbox and
+            queues it for one-click approval. Every decision is written to the audit trail.{" "}
+            <span className="text-hud-green">Nobody gets paged.</span>
+          </p>
 
-                {/* CTAs */}
-                <div className="mt-8 flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={() => setDemoOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition-all hover:from-blue-600 hover:to-blue-400 hover:shadow-blue-500/30 active:scale-[0.98]"
-                  >
-                    <PlayCircle className="h-4 w-4" />
-                    Watch demo
-                  </button>
-                  <Link
-                    href="#how-it-works"
-                    className="inline-flex items-center rounded-lg border border-stone-200 bg-white/80 px-6 py-3 text-sm font-semibold text-stone-700 backdrop-blur-sm transition-colors hover:bg-stone-50 dark:border-white/10 dark:bg-white/5 dark:text-stone-300 dark:hover:bg-white/10"
-                  >
-                    How it works
-                  </Link>
-                </div>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <HudButton href="/dashboard">
+              <Play className="h-3.5 w-3.5 fill-current" /> Press start
+            </HudButton>
+            <HudButton variant="ghost" onClick={() => setDemoOpen(true)}>
+              Watch demo
+            </HudButton>
+            <a href="#mission" className="px-2 font-hud-mono text-[11px] uppercase tracking-[0.25em] text-hud-dim hover:text-hud-cyan">
+              Mission briefing ↓
+            </a>
+          </div>
 
-                {/* Trust section — guarantees + design principles unified */}
-                <div className="mt-7 border-t border-stone-200 pt-5 dark:border-white/[0.07]">
-                  {/* Primary guarantees */}
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2.5">
-                    <div className="flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-stone-300">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-500/80" />
-                      Every fix documented
-                    </div>
-                    <div className="flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-stone-300">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-500/80" />
-                      Every decision auditable
-                    </div>
-                    <div className="flex items-center gap-2 text-sm font-medium text-stone-700 dark:text-stone-300">
-                      <Lock className="h-4 w-4 shrink-0 text-blue-500/80" />
-                      Built for trust &amp; control
-                    </div>
-                  </div>
-
-                  {/* Supporting design principles */}
-                  <div className="mt-2.5 flex flex-wrap items-center">
-                    {designPrinciples.map((label, i) => (
-                      <span key={label} className="flex items-center">
-                        <span className="text-[0.67rem] font-medium uppercase tracking-[0.18em] text-stone-400 dark:text-stone-600">
-                          {label}
-                        </span>
-                        {i < designPrinciples.length - 1 && (
-                          <span className="mx-2 select-none text-stone-300 dark:text-stone-700">
-                            ·
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* ── RIGHT — visuals ── */}
-              <div className="flex flex-col gap-4">
-                <HealingCard />
-                <TerminalWindow />
-              </div>
-            </div>
+          <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-hud-line pt-6 sm:grid-cols-4">
+            <Readout label="Safety" value="sandbox first" tone="cyan" />
+            <Readout label="Control" value="human in loop" tone="cyan" />
+            <Readout label="Memory" value="full audit" tone="cyan" />
+            <Readout label="License" value="open source" tone="green" />
           </div>
         </div>
-      </section>
-    </>
+
+        <div className="relative">
+          <div className="pointer-events-none absolute -inset-6 bg-[radial-gradient(ellipse_at_center,rgba(0,229,255,0.12),transparent_65%)]" />
+          <div className="relative brackets">
+            <LiveFeed />
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

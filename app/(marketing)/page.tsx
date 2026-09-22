@@ -1,23 +1,23 @@
-import { ConsolePreview } from "../../components/landing/console-preview";
+import { ConsoleCta } from "../../components/landing/console-cta";
+import { Enemies } from "../../components/landing/enemies";
 import { Footer } from "../../components/landing/footer";
 import { Hero } from "../../components/landing/hero";
-import { HowItWorks } from "../../components/landing/how-it-works";
-import { IntelligenceSection } from "../../components/landing/intelligence-section";
-import { ProblemSection } from "../../components/landing/problem-section";
-import { TechStack } from "../../components/landing/tech-stack";
-import { ThreeSurfaces } from "../../components/landing/three-surfaces";
+import { Loadout } from "../../components/landing/loadout";
+import { Mission } from "../../components/landing/mission";
+import { Rules } from "../../components/landing/rules";
+import { StatsStrip } from "../../components/landing/stats-strip";
 
 export default function LandingPage() {
   return (
     <>
       <main>
         <Hero />
-        <ProblemSection />
-        <HowItWorks />
-        <ThreeSurfaces />
-        <IntelligenceSection />
-        <ConsolePreview />
-        <TechStack />
+        <StatsStrip />
+        <Enemies />
+        <Mission />
+        <Rules />
+        <Loadout />
+        <ConsoleCta />
       </main>
       <Footer />
     </>
